@@ -4,11 +4,12 @@ import pandas_ta as ta
 from flask import Flask
 
 # === CONFIGURATION ===
-DHAN_API_KEY = "your_dhan_api_key"
-DHAN_CLIENT_ID = "your_client_id"
-TELEGRAM_BOT_TOKEN = "your_telegram_bot_token"
-TELEGRAM_CHAT_ID = "your_telegram_chat_id"
+DHAN_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5rSWQiOiIiLCJleHAiOjE3NTQ5NzAwMjgsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTAwMjc5OTY4In0.xCXf8u7XL6iWuXs6XbJfXHhUTY7CYtfDFATmZC51jn717cy4uq3VQuzjJyfEqxtDMa-tWswXrnZS0j7FBEFdMA"
+DHAN_CLIENT_ID = "1100279968"
+TELEGRAM_BOT_TOKEN = "7876303846:AAHsuPJ9PKUSD1rGFM8o2puPQTS9yJ32H0Y"
+TELEGRAM_CHAT_ID = "-1051646958"
 
+# F&O stocks list (expand as needed)
 FO_SYMBOLS = ["RELIANCE", "TCS", "INFY", "ICICIBANK", "HDFCBANK", "SBIN", "AXISBANK", "LT", "ITC", "MARUTI"]
 
 app = Flask(__name__)
@@ -55,9 +56,9 @@ def meets_criteria(symbol):
         for i in range(-15, 0):
             row = df_daily.iloc[i]
             if (
-                row["close"] < row["KC_Lower_21_1.0"] and
-                row["close"] < row["EMA_88"] and
-                row["RSI_14"] < 40
+                row["close"] > row["KC_Upper_21_1.0"] and
+                row["close"] > row["EMA_88"] and
+                row["RSI_14"] > 60
             ):
                 match_count += 1
 
@@ -67,20 +68,26 @@ def meets_criteria(symbol):
         df_1h.ta.rsi(length=14, append=True)
         df_1h.ta.kc(length=21, scalar=1.0, append=True)
 
+        prices = df_1h["close"]
+        kc_upper = df_1h["KC_Upper_21_1.0"]
+        kc_middle = df_1h["KC_Mid_21_1.0"]
         rsi = df_1h["RSI_14"]
-        kc_lower = df_1h["KC_Lower_21_1.0"]
-        close = df_1h["close"]
 
-        i = 0
-        while i < len(df_1h) - 3:
-            if close[i] < kc_lower[i] and rsi[i] < 40:
-                # pullback
-                j = i + 1
-                while j < len(df_1h) - 2 and close[j] > kc_lower[j] and 40 <= rsi[j] < 50:
-                    j += 1
-                if j < len(df_1h) - 1 and close[j] < kc_lower[j] and rsi[j] < 40:
-                    return True
-            i += 1
+        for i in range(len(df_1h) - 3):
+            p1, p2, p3 = prices[i], prices[i+1], prices[i+2]
+            u1, u2, u3 = kc_upper[i], kc_upper[i+1], kc_upper[i+2]
+            m2 = kc_middle[i+1]
+            r1, r2, r3 = rsi[i], rsi[i+1], rsi[i+2]
+
+            if (
+                p1 > u1 and
+                p2 < m2 and
+                p3 > u3 and
+                r1 > 60 and
+                50 <= r2 < 60 and
+                r3 > 60
+            ):
+                return True
 
     except Exception as e:
         print(f"Error in {symbol}: {e}")
@@ -88,7 +95,7 @@ def meets_criteria(symbol):
 
 @app.route("/")
 def index():
-    return "✅ Bearish Keltner Screener is live!"
+    return "✅ Screener service is live!"
 
 @app.route("/run")
 def run_screener():
@@ -97,8 +104,7 @@ def run_screener():
         if meets_criteria(symbol):
             matched.append(symbol)
     if matched:
-        if matched:
-    msg = "🔻 *Bearish Keltner Screener Alerts:*\n" + "\n".join(matched)
+        msg = "🔔 *F&O Screener Alerts:*\n" + "\n".join(matched)
         send_telegram_alert(msg)
         return f"Matched: {matched}"
     else:
