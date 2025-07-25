@@ -97,8 +97,8 @@ def run_screener():
         if meets_criteria(symbol):
             matched.append(symbol)
     if matched:
-        msg = "🔻 *Bearish Keltner Screener Alerts:*\n" + "\n".join(matched)
-" + "\n".join(matched)
+        if matched:
+    msg = "🔻 *Bearish Keltner Screener Alerts:*\n" + "\n".join(matched)
         send_telegram_alert(msg)
         return f"Matched: {matched}"
     else:
