@@ -2,3 +2,4 @@ pandas
 pandas_ta
 flask
 requests
+setuptools>=65.5.0
